@@ -159,7 +159,7 @@ namespace HyperVBackup.Console
 
                     if (options.CleanOutputDays != 0)
                     {
-                        CleanOutputByDays(options.Output, options.CleanOutputDays);
+                        CleanOutputByDays(options.Output, options.CleanOutputDays, options.DirectCopy);
                     }
 
                     if (options.CleanOutputMb != 0)
@@ -281,15 +281,30 @@ namespace HyperVBackup.Console
             }
         }
 
-        private static void CleanOutputByDays(string output, int days)
+        private static void CleanOutputByDays(string output, int days, bool directCopy)
         {
-            foreach (var file in Directory.GetFiles(output))
+            if (directCopy)
             {
-                var fileInfo = new FileInfo(file);
-                if (fileInfo.LastWriteTime < DateTime.Now.AddDays(days * -1))
+                foreach (var directory in Directory.GetDirectories(output))
                 {
-                    _logger.Info($"Deleting file {fileInfo.Name}");
-                    fileInfo.Delete();
+                    var createDate = Directory.GetCreationTime(directory);
+                    if (createDate < DateTime.Now.AddDays(days * -1))
+                    {
+                        _logger.Info($"Deleting directory {directory}");
+                        Directory.Delete(directory, true);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var file in Directory.GetFiles(output, "*.*", SearchOption.AllDirectories))
+                {
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.LastWriteTime < DateTime.Now.AddDays(days * -1))
+                    {
+                        _logger.Info($"Deleting file {fileInfo.Name}");
+                        fileInfo.Delete();
+                    }
                 }
             }
         }
